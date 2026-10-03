@@ -16,7 +16,7 @@ export const WS_URL = `/?XTransformPort=${WEBSOCKET_PORT}`;
 export const VIDEOS_DIR = "public/videos";
 
 // Model service base URL (called from Next.js backend only, through Caddy)
-export const MODEL_SERVICE_BASE = `http://localhost:${PYTHON_MODEL_PORT}`;
+export const MODEL_SERVICE_BASE = process.env.MODEL_SERVICE_URL || `http://localhost:${PYTHON_MODEL_PORT}`;
 
 // Video generation sources
 export type VideoSource = "local";
