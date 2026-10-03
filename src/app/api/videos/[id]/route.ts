@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getLiveStatus } from "@/lib/live-status";
+import { MODEL_SERVICE_BASE } from "@/lib/constants";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -22,7 +23,10 @@ export async function GET(req: NextRequest, { params }: Params) {
     }
 
     try {
-        const pyRes = await fetch(`${MODEL_SERVICE_BASE}/status/by_message/${video.messageId}`, { cache: "no-store" });
+        const pyRes = await fetch(`${MODEL_SERVICE_BASE}/status/by_message/${video.messageId}`, { 
+            cache: "no-store",
+            headers: { "ngrok-skip-browser-warning": "69420" }
+        });
         if (pyRes.ok) {
             const pyData = await pyRes.json();
             const merged = {

@@ -12,7 +12,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     if (!/^[a-zA-Z0-9_-]+$/.test(taskId)) {
       return NextResponse.json({ error: "Invalid task id" }, { status: 400 });
     }
-    const upstream = await fetch(`${MODEL_SERVICE_BASE}/video/${taskId}`);
+    const upstream = await fetch(`${MODEL_SERVICE_BASE}/video/${taskId}`, {
+        headers: { "ngrok-skip-browser-warning": "69420" }
+    });
     if (!upstream.ok) {
       return NextResponse.json(
         { error: "Video not found on model service" },

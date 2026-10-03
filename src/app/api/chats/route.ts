@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/chats?userId=X → list chats for a user
 export async function GET(req: NextRequest) {
   try {

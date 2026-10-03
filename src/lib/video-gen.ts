@@ -55,6 +55,7 @@ export async function checkLocalService(): Promise<{
     const res = await fetch(`${MODEL_SERVICE_BASE}/health`, {
       signal: controller.signal,
       cache: "no-store",
+      headers: { "ngrok-skip-browser-warning": "69420" }
     });
     clearTimeout(timeout);
     if (!res.ok) return { available: false, modelLoaded: false };
@@ -87,12 +88,15 @@ async function waitForService(onProgress?: (p: GenProgress) => void): Promise<bo
 }
 
 /** Submit a generation job to the local Python service (with retries). */
-async function submitLocalJob(prompt: string, messageId: string): Promise<string | null> {
+export async function submitLocalJob(prompt: string, messageId: string): Promise<string | null> {
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
       const res = await fetch(`${MODEL_SERVICE_BASE}/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "69420"
+        },
         body: JSON.stringify({ prompt, enhanced_prompt: "", message_id: messageId }),
       });
       if (res.ok) {
