@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
-const pdfParse = require("pdf-parse");
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -19,6 +18,7 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    const pdfParse = require("pdf-parse");
     const data = await pdfParse(buffer);
     
     return NextResponse.json({ text: data.text });
