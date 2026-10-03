@@ -10,6 +10,10 @@ export async function GET(req: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "userId required" }, { status: 400 });
     }
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
     const chats = await db.chat.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },

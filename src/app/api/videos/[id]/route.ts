@@ -75,6 +75,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Cannot cancel this video" }, { status: 400 });
     }
     
+    try {
+      await fetch(`${MODEL_SERVICE_BASE}/cancel/${video.messageId}`, { 
+        method: 'DELETE',
+        headers: { "ngrok-skip-browser-warning": "69420" }
+      });
+    } catch (e) {}
+
     await db.video.update({ where: { id }, data: { status: "failed", errorMessage: "Cancelled by user" } });
     await db.message.update({ where: { id: video.messageId }, data: { content: "Generation cancelled by user." } });
 

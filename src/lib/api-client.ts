@@ -126,10 +126,18 @@ export const api = {
       jfetch<{ user: User; chats: any[] }>(
         `/api/admin/users/${userId}/chats?key=${encodeURIComponent(key)}`,
       ),
+    deleteUser: (key: string, userId: string) =>
+      jfetch<{ ok: boolean }>(`/api/admin/users/${userId}?key=${encodeURIComponent(key)}`, {
+        method: "DELETE",
+      }),
     chatMessages: (key: string, chatId: string) =>
       jfetch<{ chat: any; messages: any[] }>(
         `/api/admin/chats/${chatId}/messages?key=${encodeURIComponent(key)}`,
       ),
+    deleteChat: (key: string, chatId: string) =>
+      jfetch<{ ok: boolean }>(`/api/admin/chats/${chatId}?key=${encodeURIComponent(key)}`, {
+        method: "DELETE",
+      }),
     listRag: (key: string) =>
       jfetch<{ docs: RagDocument[] }>(
         `/api/admin/rag?key=${encodeURIComponent(key)}`,

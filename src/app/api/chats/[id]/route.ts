@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { MODEL_SERVICE_BASE } from "@/lib/constants";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -31,7 +32,26 @@ export async function GET(req: NextRequest, { params }: Params) {
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    await db.chat.delete({ where: { id } });
+    
+    // Cancel ongoing videos (best-effort, never block the delete)
+    const pendingVideos = await db.video.findMany({
+      where: { 
+        message: { chatId: id }, 
+        status: { in: ["pending", "generating", "queued"] } 
+      }
+    });
+    
+    await Promise.allSettled(
+      pendingVideos.map((v) =>
+        fetch(`${MODEL_SERVICE_BASE}/cancel/${v.messageId}`, {
+          method: 'DELETE',
+          headers: { "ngrok-skip-browser-warning": "69420" },
+          signal: AbortSignal.timeout(3000),
+        })
+      )
+    );
+
+    await db.chat.deleteMany({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/chats/[id] error:", err);

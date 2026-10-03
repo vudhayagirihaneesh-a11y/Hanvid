@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2 } from "lucide-react";
 import { QueueBanner } from "./queue-banner";
+import { ErrorBoundary } from "./error-boundary";
 
 export function PromptInput({
   onSend,
@@ -43,7 +44,9 @@ export function PromptInput({
   return (
     <div className="border-t border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="max-w-3xl mx-auto px-4 py-3">
-        <QueueBanner />
+        <ErrorBoundary>
+          <QueueBanner />
+        </ErrorBoundary>
         <div className="relative flex items-end gap-2 rounded-2xl border border-border/60 bg-card/60 backdrop-blur p-2 focus-within:border-emerald-500/40 transition-colors">
           <Textarea
             ref={ref}

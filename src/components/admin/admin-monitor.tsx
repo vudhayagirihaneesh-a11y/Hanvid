@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Eye,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -91,6 +92,32 @@ export function AdminMonitor({ adminKey }: { adminKey: string }) {
     }
   };
 
+  const deleteUser = async (userId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this user and all their data?")) return;
+    try {
+      await api.admin.deleteUser(adminKey, userId);
+      toast.success("User deleted");
+      refresh();
+      if (selectedUser?.user.id === userId) setSelectedUser(null);
+    } catch {
+      toast.error("Failed to delete user");
+    }
+  };
+
+  const deleteChat = async (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this chat?")) return;
+    try {
+      await api.admin.deleteChat(adminKey, chatId);
+      toast.success("Chat deleted");
+      if (selectedUser) openUser(selectedUser.user.id);
+      refresh();
+    } catch {
+      toast.error("Failed to delete chat");
+    }
+  };
+
   const statCards = [
     { label: "Users", value: stats?.userCount ?? 0, icon: Users, color: "text-emerald-400" },
     { label: "Chats", value: stats?.chatCount ?? 0, icon: MessageSquare, color: "text-teal-400" },
@@ -145,37 +172,44 @@ export function AdminMonitor({ adminKey }: { adminKey: string }) {
           <ScrollArea className="max-h-[60vh]">
             <div className="divide-y divide-border/40">
               {users.map((u) => (
-                <button
+                <div
                   key={u.id}
-                  onClick={() => openUser(u.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
                 >
-                  <div className="w-9 h-9 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-sm font-semibold text-emerald-400 shrink-0">
-                    {u.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{u.name}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {new Date(u.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span className="text-center">
-                      <span className="block font-semibold text-foreground tabular-nums">
-                        {u.chatCount}
+                  <button
+                    onClick={() => openUser(u.id)}
+                    className="flex-1 flex items-center gap-3 text-left min-w-0"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-sm font-semibold text-emerald-400 shrink-0">
+                      {u.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{u.name}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {new Date(u.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground mr-2">
+                      <span className="text-center">
+                        <span className="block font-semibold text-foreground tabular-nums">
+                          {u.chatCount}
+                        </span>
+                        chats
                       </span>
-                      chats
-                    </span>
-                    <span className="text-center">
-                      <span className="block font-semibold text-foreground tabular-nums">
-                        {u.messageCount}
+                      <span className="text-center">
+                        <span className="block font-semibold text-foreground tabular-nums">
+                          {u.messageCount}
+                        </span>
+                        prompts
                       </span>
-                      prompts
-                    </span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                </button>
+                    </div>
+                  </button>
+                  <Button variant="ghost" size="icon" onClick={(e) => deleteUser(u.id, e)} className="shrink-0 text-muted-foreground hover:text-destructive h-8 w-8">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 pointer-events-none" />
+                </div>
               ))}
             </div>
           </ScrollArea>
@@ -202,21 +236,28 @@ export function AdminMonitor({ adminKey }: { adminKey: string }) {
                 </p>
               )}
               {selectedUser?.chats.map((chat: any) => (
-                <button
+                <div
                   key={chat.id}
-                  onClick={() => openChat(chat.id)}
-                  className="w-full text-left rounded-lg border border-border/60 bg-card/40 p-3 hover:border-emerald-500/30 transition-colors"
+                  className="w-full flex items-center gap-2 rounded-lg border border-border/60 bg-card/40 p-2 hover:border-emerald-500/30 transition-colors"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-medium truncate flex-1">{chat.title}</p>
-                    <Badge variant="secondary" className="shrink-0">
-                      {chat._count?.messages ?? 0} msgs
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(chat.updatedAt).toLocaleString()}
-                  </p>
-                </button>
+                  <button
+                    onClick={() => openChat(chat.id)}
+                    className="flex-1 text-left min-w-0 p-1"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium truncate flex-1">{chat.title}</p>
+                      <Badge variant="secondary" className="shrink-0">
+                        {chat._count?.messages ?? 0} msgs
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(chat.updatedAt).toLocaleString()}
+                    </p>
+                  </button>
+                  <Button variant="ghost" size="icon" onClick={(e) => deleteChat(chat.id, e)} className="shrink-0 text-muted-foreground hover:text-destructive h-8 w-8 mr-1">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               ))}
             </div>
           </ScrollArea>

@@ -9,6 +9,7 @@ import {
   getStoredUser,
   clearStoredUser,
 } from "@/lib/api-client";
+import { ErrorBoundary } from "./error-boundary";
 import { NameScreen } from "./name-screen";
 import { ChatSidebar } from "./chat-sidebar";
 import { PromptInput } from "./prompt-input";
@@ -44,8 +45,16 @@ export function UserApp() {
     try {
       const { chats } = await api.listChats(user.id);
       setChats(chats);
-    } catch (err) {
-      toast.error("Failed to load chats");
+    } catch (err: any) {
+      if (err.message?.includes("User not found") || err.message?.includes("404")) {
+        clearStoredUser();
+        setUser(null);
+        setChats([]);
+        setActiveChat(null);
+        toast.error("Your account has been deleted by an administrator.");
+      } else {
+        toast.error("Failed to load chats");
+      }
     } finally {
       setLoadingChats(false);
     }
@@ -276,7 +285,7 @@ export function UserApp() {
               <div className="min-w-0 flex-1">
                 <h2 className="font-semibold truncate">{activeChat.title}</h2>
                 <p className="text-[11px] text-muted-foreground">
-                  {activeChat.messages.length} messages
+                  {activeChat.messages?.length || 0} messages
                 </p>
               </div>
               <Button variant="ghost" size="sm" className="gap-2" onClick={handleNewChat}>
@@ -287,7 +296,7 @@ export function UserApp() {
 
             <ScrollArea className="flex-1">
               <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-                {activeChat.messages.length === 0 && (
+                {(activeChat.messages || []).length === 0 && (
                   <div className="text-center py-16 space-y-4">
                     <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto">
                       <Film className="w-8 h-8 text-emerald-400" />
@@ -318,7 +327,7 @@ export function UserApp() {
                   </div>
                 )}
 
-                {activeChat.messages.map((m) =>
+                {(activeChat.messages || []).map((m) =>
                   m.role === "user" ? (
                     <div key={m.id} className="flex justify-end">
                       <div className="max-w-[80%] rounded-2xl rounded-br-md bg-emerald-500/15 border border-emerald-500/20 px-4 py-2.5">
@@ -331,11 +340,13 @@ export function UserApp() {
                     <div key={m.id} className="flex justify-start">
                       <div className="max-w-[85%] space-y-2">
                         {m.video ? (
-                          <VideoCard
-                            video={m.video}
-                            message={m}
-                            chatId={activeChat.id}
-                          />
+                          <ErrorBoundary>
+                            <VideoCard
+                              video={m.video}
+                              message={m}
+                              chatId={activeChat.id}
+                            />
+                          </ErrorBoundary>
                         ) : (
                           <div className="rounded-2xl rounded-bl-md bg-muted/40 border border-border/40 px-4 py-2.5">
                             <p className="text-sm leading-relaxed text-muted-foreground">

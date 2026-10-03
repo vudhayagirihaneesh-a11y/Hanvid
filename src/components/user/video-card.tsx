@@ -52,24 +52,24 @@ export function VideoCard({
   const [retrying, setRetrying] = useState(false);
   const [subKey, setSubKey] = useState(0);
 
-  const terminal = video.status === "ready" || video.status === "failed";
-  const live = useVideoProgress(terminal ? null : message.id, {
+  const terminal = video?.status === "ready" || video?.status === "failed";
+  const live = useVideoProgress(terminal ? null : message?.id, {
     chatId,
-    pollUrl: video.id && !video.id.startsWith("tmp-") ? `/api/videos/${video.id}` : undefined,
+    pollUrl: video?.id && !video.id.startsWith("tmp-") ? `/api/videos/${video.id}` : undefined,
     resetKey: subKey,
   });
 
-  const finalStatus = terminal ? video.status : live.status;
-  const finalUrl = video.url || live.videoUrl;
-  const finalProgress = video.status === "ready" ? 100 : live.progress;
-  const finalSource = live.source || video.source;
-  const finalError = (terminal ? video.errorMessage : live.error) || live.error;
+  const finalStatus = terminal ? video?.status : live.status;
+  const finalUrl = video?.url || live.videoUrl;
+  const finalProgress = video?.status === "ready" ? 100 : live.progress;
+  const finalSource = live.source || video?.source;
+  const finalError = (terminal ? video?.errorMessage : live.error) || live.error;
   const phase = live.phase;
 
   const isWorking = finalStatus === "generating" || finalStatus === "pending" || finalStatus === "queued";
 
   const retry = async () => {
-    if (video.id.startsWith("tmp-")) return;
+    if (!video || video.id.startsWith("tmp-")) return;
     setRetrying(true);
     try {
       const { video: v } = await api.retryVideo(video.id);
@@ -83,10 +83,10 @@ export function VideoCard({
   };
 
   const cancel = async () => {
-    if (video.id.startsWith("tmp-")) return;
+    if (!video || video.id.startsWith("tmp-")) return;
     try {
       await api.cancelVideo(video.id);
-      setVideo((v) => ({ ...v, status: "failed", errorMessage: "Cancelled by user" }));
+      setVideo((v) => (v ? { ...v, status: "failed", errorMessage: "Cancelled by user" } : v));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't cancel");
     }
@@ -129,7 +129,7 @@ export function VideoCard({
                 </p>
               </div>
               <Button
-                id={`retry-${video.id}`}
+                id={`retry-${video?.id || "unknown"}`}
                 size="sm"
                 variant="secondary"
                 className="gap-2 mt-1"
@@ -163,7 +163,7 @@ export function VideoCard({
                 {SOURCE_LABEL[finalSource] ?? finalSource}
               </Badge>
             )}
-            {message.enhancedPrompt && (
+            {message?.enhancedPrompt && (
               <span className="text-xs text-muted-foreground truncate flex items-center gap-1">
                 <Wand2 className="w-3 h-3" /> Knowledge applied
               </span>
@@ -179,7 +179,7 @@ export function VideoCard({
         </div>
       </div>
 
-      {message.enhancedPrompt && (
+      {message?.enhancedPrompt && (
         <details className="mt-2 group">
           <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
             View prompt sent to the model
@@ -200,6 +200,7 @@ function WorkingState({
   queuePosition,
   queueLength,
   etaSeconds,
+  onCancel,
 }: {
   phase?: string;
   status: string;
@@ -292,6 +293,9 @@ function WorkingState({
       <p className="text-xs text-muted-foreground tabular-nums">
         {progress}%{etaSeconds != null && !finalizing ? ` · ${formatEta(etaSeconds)} left` : ""}
       </p>
+      <div className="mt-2 px-4 py-2 bg-black/30 rounded-lg border border-emerald-500/10 italic text-xs text-emerald-200/70 max-w-[90%]">
+        "Sit back and relax. High-quality, stable generation takes a little time. Feel free to check back in a few minutes!"
+      </div>
       {onCancel && (
         <Button variant="ghost" size="sm" onClick={onCancel} className="mt-2 text-xs h-7 text-emerald-200/60 hover:text-emerald-200 hover:bg-emerald-900/40">
           Stop generating
