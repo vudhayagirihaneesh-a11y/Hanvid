@@ -66,3 +66,21 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Failed to fetch video" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: Params) {
+  try {
+    const { id } = await params;
+    const video = await db.video.findUnique({ where: { id } });
+    if (!video || (video.status !== "pending" && video.status !== "generating")) {
+      return NextResponse.json({ error: "Cannot cancel this video" }, { status: 400 });
+    }
+    
+    await db.video.update({ where: { id }, data: { status: "failed", errorMessage: "Cancelled by user" } });
+    await db.message.update({ where: { id: video.messageId }, data: { content: "Generation cancelled by user." } });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE /api/videos/[id] error:", err);
+    return NextResponse.json({ error: "Failed to cancel video" }, { status: 500 });
+  }
+}

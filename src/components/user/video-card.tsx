@@ -82,6 +82,16 @@ export function VideoCard({
     }
   };
 
+  const cancel = async () => {
+    if (video.id.startsWith("tmp-")) return;
+    try {
+      await api.cancelVideo(video.id);
+      setVideo((v) => ({ ...v, status: "failed", errorMessage: "Cancelled by user" }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't cancel");
+    }
+  };
+
   return (
     <div className="w-full max-w-md">
       <div className="rounded-xl overflow-hidden border border-border bg-card/60 backdrop-blur">
@@ -105,6 +115,7 @@ export function VideoCard({
               queuePosition={live.queuePosition}
               queueLength={live.queueLength}
               etaSeconds={live.etaSeconds}
+              onCancel={cancel}
             />
           ) : finalStatus === "failed" ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-6 bg-gradient-to-br from-amber-950/30 via-black/40 to-black/60">
@@ -196,6 +207,7 @@ function WorkingState({
   queuePosition?: number;
   queueLength?: number;
   etaSeconds?: number;
+  onCancel?: () => void;
 }) {
   const shell =
     "absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6 bg-gradient-to-br";
@@ -214,6 +226,11 @@ function WorkingState({
         <div className="w-2/3 h-1 rounded-full bg-sky-500/10 overflow-hidden">
           <div className="h-full w-1/3 bg-sky-400/60 rounded-full animate-waitlist-slide" />
         </div>
+        {onCancel && (
+          <Button variant="ghost" size="sm" onClick={onCancel} className="mt-2 text-xs h-7 text-sky-200/60 hover:text-sky-200 hover:bg-sky-900/40">
+            Stop generating
+          </Button>
+        )}
       </div>
     );
   }
@@ -250,6 +267,11 @@ function WorkingState({
         <div className="w-2/3 h-1 rounded-full bg-violet-500/10 overflow-hidden">
           <div className="h-full w-1/3 bg-violet-400/60 rounded-full animate-waitlist-slide" />
         </div>
+        {onCancel && (
+          <Button variant="ghost" size="sm" onClick={onCancel} className="mt-2 text-xs h-7 text-violet-200/60 hover:text-violet-200 hover:bg-violet-900/40">
+            Stop generating
+          </Button>
+        )}
       </div>
     );
   }
@@ -270,6 +292,11 @@ function WorkingState({
       <p className="text-xs text-muted-foreground tabular-nums">
         {progress}%{etaSeconds != null && !finalizing ? ` · ${formatEta(etaSeconds)} left` : ""}
       </p>
+      {onCancel && (
+        <Button variant="ghost" size="sm" onClick={onCancel} className="mt-2 text-xs h-7 text-emerald-200/60 hover:text-emerald-200 hover:bg-emerald-900/40">
+          Stop generating
+        </Button>
+      )}
     </div>
   );
 }

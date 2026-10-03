@@ -110,6 +110,9 @@ export const api = {
   retryVideo: (id: string) =>
     jfetch<{ video: Video }>(`/api/videos/${id}/retry`, { method: "POST" }),
 
+  cancelVideo: (id: string) =>
+    jfetch<{ ok: boolean }>(`/api/videos/${id}`, { method: "DELETE" }),
+
   // ---- Waitlist / queue ----
   getQueue: () => jfetch<QueueStatus>("/api/queue"),
 

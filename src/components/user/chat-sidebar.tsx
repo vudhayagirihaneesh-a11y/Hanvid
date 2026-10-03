@@ -86,11 +86,12 @@ export function ChatSidebar({
                   </p>
                 </div>
                 <button
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 hover:text-destructive"
+                  className="opacity-40 hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 hover:text-destructive"
                   onClick={(e) => {
                     e.stopPropagation();
                     setConfirmDelete(chat.id);
                   }}
+                  title="Delete chat"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
