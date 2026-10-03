@@ -20,7 +20,7 @@ export interface Chat {
 export interface Video {
   id: string;
   messageId: string;
-  status: "pending" | "generating" | "ready" | "failed";
+  status: "pending" | "generating" | "ready" | "failed" | "queued";
   progress: number;
   url: string | null;
   source: string;

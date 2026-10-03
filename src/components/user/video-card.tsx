@@ -66,7 +66,7 @@ export function VideoCard({
   const finalError = (terminal ? video.errorMessage : live.error) || live.error;
   const phase = live.phase;
 
-  const isWorking = finalStatus === "generating" || finalStatus === "pending";
+  const isWorking = finalStatus === "generating" || finalStatus === "pending" || finalStatus === "queued";
 
   const retry = async () => {
     if (video.id.startsWith("tmp-")) return;

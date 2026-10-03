@@ -9,7 +9,7 @@ export type GenPhase = "warming" | "queued" | "generating" | "finalizing";
 export interface ProgressUpdate {
   messageId: string;
   chatId?: string;
-  status: "pending" | "generating" | "ready" | "failed";
+  status: "pending" | "generating" | "ready" | "failed" | "queued";
   progress: number;
   phase?: GenPhase;
   queuePosition?: number;
