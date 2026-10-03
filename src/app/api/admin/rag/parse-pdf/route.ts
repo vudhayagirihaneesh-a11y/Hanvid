@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
-import pdfParse from "pdf-parse";
+const pdfParse = require("pdf-parse");
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
