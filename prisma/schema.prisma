@@ -1,0 +1,66 @@
+// Wan2.1 Video Generation Web App - Prisma schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  chats     Chat[]
+}
+
+model Chat {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  chatId          String
+  role            String // "user" | "assistant"
+  content         String   // The raw prompt text (user) or note (assistant)
+  enhancedPrompt  String?  // RAG-enhanced prompt sent to the model
+  createdAt       DateTime @default(now())
+  chat            Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  video          Video?
+}
+
+model Video {
+  id           String   @id @default(cuid())
+  messageId    String   @unique
+  status       String   // "pending" | "generating" | "ready" | "failed"
+  progress     Int      @default(0) // 0-100
+  url          String?  // path to the generated video file
+  thumbnailUrl String?
+  source       String   @default("auto") // "local" | "cloud" | "demo"
+  errorMessage String?
+  duration     Int?     // seconds
+  width        Int?
+  height       Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  message      Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model RagDocument {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  tags      String   @default("") // comma separated
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
