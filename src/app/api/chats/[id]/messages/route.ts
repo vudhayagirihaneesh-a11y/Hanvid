@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { runGenerationInBackground } from "@/lib/generation-runner";
 import { retrieveRagContext, enhancePromptWithRag } from "@/lib/rag";
+import { submitLocalJob } from "@/lib/video-gen";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -63,14 +63,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       data: { updatedAt: new Date(), ...(isDefaultTitle ? { title: newTitle } : {}) },
     });
 
-    // 3. Queue generation in the background (do NOT await).
-    runGenerationInBackground({
-      messageId: assistantMessage.id,
-      videoId: video.id,
-      chatId,
-      prompt: enhancedPrompt,
-    }).catch((err) => {
-      console.error("Background generation failed:", err);
+    // 3. Queue generation on the local Python GPU synchronously
+    // This returns quickly because FastAPI queues the job and returns 202.
+    // The browser will poll the REST endpoint to get progress.
+    await submitLocalJob(enhancedPrompt, assistantMessage.id).catch((err) => {
+      console.error("Failed to submit job to local Python service:", err);
     });
 
     return NextResponse.json(

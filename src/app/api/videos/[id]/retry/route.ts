@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { runGenerationInBackground } from "@/lib/generation-runner";
+import { submitLocalJob } from "@/lib/video-gen";
 import { setLiveStatus } from "@/lib/live-status";
 
 export const runtime = "nodejs";
@@ -45,12 +45,9 @@ export async function POST(_req: NextRequest, { params }: Params) {
     });
     setLiveStatus(video.messageId, { status: "pending", progress: 0, phase: "queued" });
 
-    runGenerationInBackground({
-      messageId: video.messageId,
-      videoId: id,
-      chatId: video.message.chatId,
-      prompt: userMsg.content,
-    }).catch((err) => console.error("Retry generation failed:", err));
+    await submitLocalJob(userMsg.content, video.messageId).catch((err) => {
+        console.error("Retry generation failed to submit:", err);
+    });
 
     return NextResponse.json({ video: updated });
   } catch (err) {
