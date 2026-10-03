@@ -86,7 +86,7 @@ export function ChatSidebar({
                   </p>
                 </div>
                 <button
-                  className="opacity-40 hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 hover:text-destructive"
+                  className="shrink-0 opacity-40 hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 hover:text-destructive"
                   onClick={(e) => {
                     e.stopPropagation();
                     setConfirmDelete(chat.id);
