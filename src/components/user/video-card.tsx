@@ -294,7 +294,7 @@ function WorkingState({
         {progress}%{etaSeconds != null && !finalizing ? ` · ${formatEta(etaSeconds)} left` : ""}
       </p>
       <div className="mt-2 px-4 py-2 bg-black/30 rounded-lg border border-emerald-500/10 italic text-xs text-emerald-200/70 max-w-[90%]">
-        "Sit back and relax. High-quality, stable generation takes a little time. Feel free to check back in a few minutes!"
+        &quot;Sit back and relax. High-quality, stable generation takes a little time. Feel free to check back in a few minutes!&quot;
       </div>
       {onCancel && (
         <Button variant="ghost" size="sm" onClick={onCancel} className="mt-2 text-xs h-7 text-emerald-200/60 hover:text-emerald-200 hover:bg-emerald-900/40">
