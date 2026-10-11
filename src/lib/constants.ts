@@ -21,7 +21,7 @@ export const WS_URL = process.env.NEXT_PUBLIC_WS_URL || `http://localhost:${WEBS
 export const VIDEOS_DIR = "public/videos";
 
 // Model service base URL (called from Next.js backend only, through Caddy)
-export const MODEL_SERVICE_BASE = process.env.MODEL_SERVICE_URL || `http://localhost:${PYTHON_MODEL_PORT}`;
+export const MODEL_SERVICE_BASE = (process.env.MODEL_SERVICE_URL || process.env.PYTHON_SERVICE_URL || `http://localhost:${PYTHON_MODEL_PORT}`).trim().replace(/\/+$/, "");
 
 // Video generation sources
 export type VideoSource = "local";

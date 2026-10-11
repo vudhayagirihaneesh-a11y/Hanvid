@@ -51,14 +51,17 @@ export async function checkLocalService(): Promise<{
 }> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2500);
+    const timeout = setTimeout(() => controller.abort(), 6000);
     const res = await fetch(`${MODEL_SERVICE_BASE}/health`, {
       signal: controller.signal,
       cache: "no-store",
       headers: { "ngrok-skip-browser-warning": "69420" }
     });
     clearTimeout(timeout);
-    if (!res.ok) return { available: false, modelLoaded: false };
+    if (!res.ok) {
+      console.warn("checkLocalService: response not ok:", res.status, res.statusText);
+      return { available: false, modelLoaded: false };
+    }
     const data = await res.json();
     return {
       available: true,
@@ -66,7 +69,8 @@ export async function checkLocalService(): Promise<{
       mode: data.mode,
       queue: data.queue,
     };
-  } catch {
+  } catch (err) {
+    console.warn("checkLocalService fetch failed:", err instanceof Error ? err.message : err);
     return { available: false, modelLoaded: false };
   }
 }
