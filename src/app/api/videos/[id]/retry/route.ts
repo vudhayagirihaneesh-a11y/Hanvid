@@ -45,7 +45,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     });
     setLiveStatus(video.messageId, { status: "pending", progress: 0, phase: "queued" });
 
-    await submitLocalJob(userMsg.content, video.messageId).catch((err) => {
+    await submitLocalJob(video.message.enhancedPrompt || userMsg.content, video.messageId).catch((err) => {
         console.error("Retry generation failed to submit:", err);
     });
 

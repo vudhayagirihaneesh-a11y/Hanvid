@@ -1,14 +1,12 @@
 import { db } from "@/lib/db";
 import { MODEL_SERVICE_BASE } from "@/lib/constants";
 import type { GenPhase } from "@/lib/live-status";
-import { writeFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
 
 /**
  * Video generation orchestration.
  *
  * Strategy:
- * 1. Wait (patiently) for the local Python Wan2.1 service to be up and the
+ * 1. Wait (patiently) for the local Python Wan 2.2 service to be up and the
  *    model loaded — users see a "warming up" state instead of an error.
  * 2. Submit the job; the service queues it FIFO on the single GPU.
  * 3. Poll until done, surfacing queue position + ETA while waiting.
@@ -42,7 +40,9 @@ const POLL_INTERVAL_MS = 2500;
 const FRIENDLY_FAILURE =
   "We couldn't generate this video right now. Please try again in a moment.";
 
-/** Check whether the local Python model service is available and loaded. */
+/** Check whether the local Python model service is available and ready.
+ * Note: `modelLoaded` is true for real generation; a `demo`-mode service is
+ * also ready (it produces placeholder videos), so callers accept either. */
 export async function checkLocalService(): Promise<{
   available: boolean;
   modelLoaded: boolean;
@@ -62,7 +62,7 @@ export async function checkLocalService(): Promise<{
     const data = await res.json();
     return {
       available: true,
-      modelLoaded: data.model_loaded === true,
+      modelLoaded: data.model_loaded === true || data.mode === "demo",
       mode: data.mode,
       queue: data.queue,
     };
@@ -88,16 +88,29 @@ async function waitForService(onProgress?: (p: GenProgress) => void): Promise<bo
 }
 
 /** Submit a generation job to the local Python service (with retries). */
-export async function submitLocalJob(prompt: string, messageId: string): Promise<string | null> {
-  for (let attempt = 0; attempt < 4; attempt++) {
+export async function submitLocalJob(
+  prompt: string,
+  messageId: string,
+  resolution: string = "2k",
+): Promise<string | null> {
+  // 3 quick attempts — the caller surfaces a clean error to the user if the
+  // service is truly offline (it may still be warming up, in which case the
+  // job is accepted and queued anyway).
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const res = await fetch(`${MODEL_SERVICE_BASE}/generate`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "ngrok-skip-browser-warning": "69420"
         },
-        body: JSON.stringify({ prompt, enhanced_prompt: "", message_id: messageId }),
+        body: JSON.stringify({
+          prompt,
+          enhanced_prompt: "",
+          message_id: messageId,
+          resolution: resolution ?? "2k",
+        }),
+        signal: AbortSignal.timeout(10000),
       });
       if (res.ok) {
         const data = await res.json();
@@ -106,7 +119,7 @@ export async function submitLocalJob(prompt: string, messageId: string): Promise
     } catch {
       /* retry */
     }
-    await sleep(2000 * (attempt + 1));
+    await sleep(1000 * (attempt + 1));
   }
   return null;
 }
@@ -114,8 +127,13 @@ export async function submitLocalJob(prompt: string, messageId: string): Promise
 /** Thrown for transient poll errors that should be retried. */
 class TransientPollError extends Error {}
 
+/** Streaming proxy URL for a finished video (served by /api/videos/stream/[messageId]). */
+function streamUrlFor(messageId: string): string {
+  return `/api/videos/stream/${messageId}`;
+}
+
 /** Poll the local service for task status. */
-async function pollLocalTask(taskId: string): Promise<GenProgress> {
+async function pollLocalTask(taskId: string, messageId: string): Promise<GenProgress> {
   let res: Response;
   try {
     const controller = new AbortController();
@@ -138,16 +156,14 @@ async function pollLocalTask(taskId: string): Promise<GenProgress> {
 
   const data = await res.json();
   if (data.status === "ready" || data.status === "SUCCESS") {
-    // Download the video from the Python service to local public storage so it
-    // is served uniformly by Next.js (browsers can't reach port 3004 directly).
-    const localUrl = await downloadLocalVideo(taskId);
-    if (!localUrl) {
-      throw new TransientPollError("video download failed");
-    }
+    // The MP4 stays on the model service and is streamed through the
+    // /api/videos/stream/[messageId] proxy. Unlike the old "download into
+    // public/videos" approach, this URL works in dev AND in the standalone
+    // production build (which serves a different public folder).
     return {
       status: "ready",
       progress: 100,
-      videoUrl: localUrl,
+      videoUrl: streamUrlFor(messageId),
       source: "local",
       duration: data.duration,
       width: data.width,
@@ -188,9 +204,10 @@ export async function generateVideo(opts: {
   messageId: string;
   prompt: string;
   enhancedPrompt?: string;
+  resolution?: string;
   onProgress?: (p: GenProgress) => void;
 }): Promise<GenProgress> {
-  const { messageId, prompt, onProgress } = opts;
+  const { messageId, prompt, resolution = "2k", onProgress } = opts;
   const deadline = Date.now() + JOB_TIMEOUT_MS;
 
   onProgress?.({ status: "pending", progress: 0, phase: "queued", source: "local" });
@@ -207,13 +224,13 @@ export async function generateVideo(opts: {
       break;
     }
 
-    const taskId = await submitLocalJob(prompt, messageId);
+    const taskId = await submitLocalJob(prompt, messageId, resolution);
     if (!taskId) {
       result = { status: "failed", progress: 0, errorMessage: FRIENDLY_FAILURE };
       continue;
     }
 
-    result = await pollUntilDone(() => pollLocalTask(taskId), onProgress, deadline);
+    result = await pollUntilDone(() => pollLocalTask(taskId, messageId), onProgress, deadline);
     if (!result.lost) break;
     console.warn(`[video-gen] task ${taskId} lost (service restart) — resubmitting`);
     result = { status: "failed", progress: 0, errorMessage: FRIENDLY_FAILURE };
@@ -279,21 +296,4 @@ async function persistVideo(messageId: string, result: GenProgress) {
       updatedAt: new Date(),
     },
   });
-}
-
-/** Download a video generated by the local Python service into public storage. */
-async function downloadLocalVideo(taskId: string): Promise<string | null> {
-  try {
-    const res = await fetch(`${MODEL_SERVICE_BASE}/video/${taskId}`, { cache: "no-store" });
-    if (!res.ok) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    const dir = join(process.cwd(), "public", "videos");
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    const filename = `local-${taskId}.mp4`;
-    writeFileSync(join(dir, filename), buf);
-    return `/videos/${filename}`;
-  } catch (err) {
-    console.error("Failed to download local video:", err);
-    return null;
-  }
 }

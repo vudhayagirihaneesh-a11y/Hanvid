@@ -41,15 +41,19 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       }
     });
     
-    await Promise.allSettled(
-      pendingVideos.map((v) =>
-        fetch(`${MODEL_SERVICE_BASE}/cancel/${v.messageId}`, {
-          method: 'DELETE',
-          headers: { "ngrok-skip-browser-warning": "69420" },
-          signal: AbortSignal.timeout(3000),
-        })
-      )
-    );
+    try {
+      await Promise.allSettled(
+        pendingVideos.map((v) =>
+          fetch(`${MODEL_SERVICE_BASE}/cancel/${v.messageId}`, {
+            method: 'DELETE',
+            headers: { "ngrok-skip-browser-warning": "69420" },
+            signal: AbortSignal.timeout(3000),
+          }).catch(() => null)
+        )
+      );
+    } catch (cancelErr) {
+      console.warn("Failed to cancel videos during chat delete:", cancelErr);
+    }
 
     await db.chat.deleteMany({ where: { id } });
     return NextResponse.json({ ok: true });

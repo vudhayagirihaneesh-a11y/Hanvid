@@ -12,24 +12,41 @@ export async function GET(req: NextRequest, { params }: Params) {
     if (!/^[a-zA-Z0-9_-]+$/.test(taskId)) {
       return NextResponse.json({ error: "Invalid task id" }, { status: 400 });
     }
+    const headers: Record<string, string> = {
+      "ngrok-skip-browser-warning": "69420",
+    };
+    const range = req.headers.get("range");
+    if (range) {
+      headers["range"] = range;
+    }
+
     const upstream = await fetch(`${MODEL_SERVICE_BASE}/video/${taskId}`, {
-        headers: { "ngrok-skip-browser-warning": "69420" }
+      headers,
+      cache: "no-store",
     });
     if (!upstream.ok) {
       return NextResponse.json(
         { error: "Video not found on model service" },
-        { status: 404 },
+        { status: upstream.status },
       );
     }
-    const contentType =
-      upstream.headers.get("content-type") || "video/mp4";
-    const buf = Buffer.from(await upstream.arrayBuffer());
-    return new NextResponse(buf, {
-      status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=3600",
-      },
+    const resHeaders = new Headers();
+    const forwardHeaders = [
+      "content-type",
+      "content-length",
+      "content-range",
+      "accept-ranges",
+      "content-disposition",
+    ];
+    for (const header of forwardHeaders) {
+      const val = upstream.headers.get(header);
+      if (val) resHeaders.set(header, val);
+    }
+    resHeaders.set("Cache-Control", "public, max-age=3600");
+
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      headers: resHeaders,
     });
   } catch (err) {
     console.error("GET /api/videos/local/[taskId] error:", err);

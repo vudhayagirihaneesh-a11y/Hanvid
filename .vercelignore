@@ -1,0 +1,13 @@
+mini-services/
+temp_pro/
+.git/
+*.zip
+*.mp4
+*.bak
+hanvid_professional_unzipped/
+.tempmediaStorage/
+.user_uploaded/
+.venv/
+venv/
+prisma/dev.db
+url.txt

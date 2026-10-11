@@ -103,7 +103,7 @@ export function UserApp() {
   );
 
   const handleSend = useCallback(
-    async (content: string) => {
+    async (content: string, resolution: string = "2k") => {
       if (!activeChat || !user) return;
       setSending(true);
 
@@ -145,7 +145,7 @@ export function UserApp() {
       );
 
       try {
-        const { message, video, ragUsed } = await api.sendMessage(activeChat.id, content);
+        const { message, video, ragUsed } = await api.sendMessage(activeChat.id, content, resolution);
         // Replace the optimistic assistant message with the real one.
         setActiveChat((prev) =>
           prev

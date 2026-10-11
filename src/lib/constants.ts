@@ -9,8 +9,13 @@ export const ADMIN_QUERY_PARAM = "portal";
 export const WEBSOCKET_PORT = 3003;
 export const PYTHON_MODEL_PORT = 3004;
 
-// WebSocket connection URL (uses Caddy gateway transform)
-export const WS_URL = `/?XTransformPort=${WEBSOCKET_PORT}`;
+// WebSocket connection URL for the realtime progress service.
+// Default: direct connection to the local socket.io service on port 3003
+// (its CORS is open, so cross-origin from :3000 works).
+// Behind the Caddy gateway, set NEXT_PUBLIC_WS_URL="/?XTransformPort=3003"
+// in your environment instead — the old default silently connected to the
+// Next.js server itself and never received any progress events locally.
+export const WS_URL = process.env.NEXT_PUBLIC_WS_URL || `http://localhost:${WEBSOCKET_PORT}`;
 
 // Storage path for generated videos served by Next.js
 export const VIDEOS_DIR = "public/videos";

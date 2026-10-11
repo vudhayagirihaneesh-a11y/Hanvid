@@ -98,10 +98,10 @@ export const api = {
     }),
 
   // ---- Message API ----
-  sendMessage: (chatId: string, content: string) =>
+  sendMessage: (chatId: string, content: string, resolution: string = "2k") =>
     jfetch<{ message: Message; video: Video; ragUsed: boolean }>(
       `/api/chats/${chatId}/messages`,
-      { method: "POST", body: JSON.stringify({ content }) },
+      { method: "POST", body: JSON.stringify({ content, resolution }) },
     ),
 
   // ---- Video API ----

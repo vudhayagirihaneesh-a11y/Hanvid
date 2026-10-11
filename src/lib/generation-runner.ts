@@ -17,6 +17,7 @@ export function runGenerationInBackground(opts: {
   videoId: string;
   chatId: string;
   prompt: string;
+  resolution?: string;
 }) {
   let lastDbWrite = 0;
   let lastDbKey = "";
@@ -62,6 +63,7 @@ export function runGenerationInBackground(opts: {
       const result = await generateVideo({
         messageId: opts.messageId,
         prompt: opts.prompt,
+        resolution: opts.resolution,
         onProgress: publish,
       });
 

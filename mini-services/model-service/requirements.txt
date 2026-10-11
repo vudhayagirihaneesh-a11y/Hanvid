@@ -1,0 +1,54 @@
+fastapi
+uvicorn[standard]
+
+# ----------------------------------------------------------------------------
+# Real Wan2.1 model generation dependencies (OPTIONAL)
+# ----------------------------------------------------------------------------
+# The heavy ML stack below is NOT installed by default — it lets the service
+# run in lightweight "demo" mode (ffmpeg-generated placeholder videos) so the
+# web app UI always works, even on machines without a GPU.
+#
+# ⚠ RTX 5070 / RTX 50-series (Blackwell) owners — READ THIS FIRST ⚠
+# Blackwell GPUs (compute capability 12.x / sm_120) REQUIRE a PyTorch build
+# compiled with CUDA 12.8 or newer. The default `pip install torch` wheel
+# (or any cu121/cu124 wheel) will either report no CUDA, or worse: report
+# CUDA available and then fail every real kernel with
+#     "CUDA error: no kernel image is available for execution on the device"
+# → the classic cause of weak/disturbed video, multi-minute step times and
+#   silent demo-mode fallback on brand-new 50-series cards.
+#
+# Install PyTorch FIRST, with the cu128 index:
+#   pip uninstall -y torch
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
+#
+# Then install the rest of the stack and verify:
+#   pip install -r requirements.txt
+#   python verify_setup.py
+# verify_setup.py prints a green/PASS report when the GPU, torch build,
+# VRAM, ffmpeg and model weights are all ready for real generation.
+#
+# Model weights (either is fine):
+#   * Standard 1.3B:  huggingface hub cache of Wan-AI/Wan2.1-T2V-1.3B-Diffusers
+#                     (auto-downloaded on first real load)
+#   * Phr00t Rapid:   python download_model.py  (single-file Mega-v3 AIO
+#                     checkpoint → models/Mega-v3/, CFG-free distilled)
+# ----------------------------------------------------------------------------
+torch
+diffusers
+transformers
+accelerate
+safetensors
+imageio
+imageio-ffmpeg
+huggingface_hub
+
+# scipy — required for the beta-sigma scheduler used by Rapid/distilled
+# checkpoints (the ComfyUI "beta" scheduler of the official Mega-v3
+# workflow). Without it the service falls back to plain shifted sigmas.
+scipy
+
+# sentencepiece — required by the UMT5 tokenizer of the Wan text encoder.
+sentencepiece
+
+# Optional but nice for the hardware report (RAM reading):
+# psutil

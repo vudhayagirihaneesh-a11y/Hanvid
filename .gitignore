@@ -59,3 +59,22 @@ mini-services/model-service/__pycache__/
 scratch/
 .tempmediaStorage/
 .user_uploaded/
+.env*
+
+# Python & AI Services
+mini-services/model-service/models/
+mini-services/model-service/videos/
+mini-services/model-service/uploads/
+mini-services/model-service/MMAudio/ext/
+*.zip
+*.bak
+*.mp4
+*.tar.gz
+temp_pro/
+hanvid_professional_unzipped/
+prisma/dev.db
+url.txt
+
+mini-services/model-service/ext_weights/
+
+db/
