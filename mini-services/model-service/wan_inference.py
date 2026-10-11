@@ -1150,6 +1150,8 @@ class WanModel:
                     else None
                 )
                 logger.info("Prompt encoded on CPU in %.1fs", time.time() - t_enc)
+                if is_cancelled and is_cancelled():
+                    raise GenerationCancelled("Generation cancelled after prompt encoding")
                 with _torch.inference_mode():
                     output, width, height, num_frames = self._generate_with_oom_recovery(
                         prompt_embeds=prompt_embeds,

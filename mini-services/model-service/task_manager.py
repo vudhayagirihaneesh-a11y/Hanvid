@@ -915,6 +915,10 @@ class TaskManager:
             logger.error("Error running Ollama wrapper: %s", e)
 
         try:
+            task = self._tasks.get(task_id)
+            if task and (task.get("status") in _TERMINAL or task.get("cancelled")):
+                logger.info("Task %s was cancelled before generation — stopping.", task_id)
+                return
             await self._set(task_id, status="generating", progress=5)
             if wan_model.loaded:
                 await self._run_real(task_id, prompt, input_path)
