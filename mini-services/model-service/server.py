@@ -142,10 +142,23 @@ async def status_by_message(message_id: str) -> JSONResponse:
     return JSONResponse(task)
 
 
-@app.delete("/cancel/{message_id}")
-async def cancel(message_id: str) -> JSONResponse:
-    await task_manager.cancel_by_message(message_id)
-    return JSONResponse({"ok": True})
+@app.post("/cancel/all")
+@app.delete("/cancel/all")
+async def cancel_all() -> JSONResponse:
+    count = await task_manager.cancel_all()
+    return JSONResponse({"ok": True, "cancelled": count})
+
+
+@app.delete("/cancel/{identifier}")
+@app.post("/cancel/{identifier}")
+async def cancel(identifier: str) -> JSONResponse:
+    if identifier == "all":
+        count = await task_manager.cancel_all()
+        return JSONResponse({"ok": True, "cancelled": count})
+    cancelled = await task_manager.cancel_by_message(identifier)
+    if not cancelled:
+        cancelled = await task_manager.cancel_task(identifier)
+    return JSONResponse({"ok": True, "cancelled": cancelled})
 
 
 @app.get("/video/{task_id}")

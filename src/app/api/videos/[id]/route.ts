@@ -71,19 +71,24 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
     const video = await db.video.findUnique({ where: { id } });
-    if (!video || (video.status !== "pending" && video.status !== "generating")) {
-      return NextResponse.json({ error: "Cannot cancel this video" }, { status: 400 });
+    if (!video) {
+      return NextResponse.json({ error: "Video not found" }, { status: 404 });
     }
     
     try {
-      await fetch(`${MODEL_SERVICE_BASE}/cancel/${video.messageId}`, { 
-        method: 'DELETE',
-        headers: { "ngrok-skip-browser-warning": "69420" }
-      });
+      if (video.messageId) {
+        await fetch(`${MODEL_SERVICE_BASE}/cancel/${video.messageId}`, { 
+          method: 'DELETE',
+          headers: { "ngrok-skip-browser-warning": "69420" },
+          signal: AbortSignal.timeout(4000)
+        });
+      }
     } catch (e) {}
 
     await db.video.update({ where: { id }, data: { status: "failed", errorMessage: "Cancelled by user" } });
-    await db.message.update({ where: { id: video.messageId }, data: { content: "Generation cancelled by user." } });
+    if (video.messageId) {
+      await db.message.update({ where: { id: video.messageId }, data: { content: "Generation cancelled by user." } });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {

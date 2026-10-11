@@ -31,11 +31,12 @@ import asyncio
 import logging
 import os
 import re
+import threading
 import time
 import uuid
 from typing import Any, Optional
 
-from wan_inference import model as wan_model
+from wan_inference import model as wan_model, GenerationCancelled
 
 logger = logging.getLogger("task_manager")
 
@@ -645,7 +646,7 @@ class TaskManager:
                     if task_id in self._waiting:
                         self._waiting.remove(task_id)
                     task = self._tasks.get(task_id)
-                    if task is None:
+                    if task is None or task.get("status") in _TERMINAL or task.get("cancelled"):
                         continue
                     self._running_id = task_id
                     self._running_started = time.time()
@@ -767,6 +768,8 @@ class TaskManager:
                 "mode": wan_model.mode,
                 "input_path": input_path,
                 "resolution": target_res,
+                "cancel_event": threading.Event(),
+                "cancelled": False,
             }
             self._waiting.append(task_id)
 
@@ -780,22 +783,61 @@ class TaskManager:
         )
         return task_id
 
-    async def cancel_by_message(self, message_id: str) -> None:
-        """Cancel (and prune) tasks for a message so a retry can resubmit."""
+    async def cancel_by_message(self, message_id: str) -> bool:
+        """Cancel tasks for a message and signal stop if currently generating."""
+        found = False
         async with self._lock:
-            for tid in [t for t, v in self._tasks.items() if v.get("message_id") == message_id]:
-                task = self._tasks.get(tid)
-                if task is None:
-                    continue
-                if task["status"] not in _TERMINAL:
+            for tid, task in self._tasks.items():
+                if task.get("message_id") == message_id:
+                    found = True
+                    if task.get("status") not in _TERMINAL:
+                        task["status"] = "failed"
+                        task["cancelled"] = True
+                        task["error"] = "Cancelled by user"
+                        ev = task.get("cancel_event")
+                        if ev:
+                            ev.set()
+                        if tid in self._waiting:
+                            self._waiting.remove(tid)
+                        logger.info("Task %s cancelled via message_id %s", tid, message_id)
+        return found
+
+    async def cancel_task(self, task_id: str) -> bool:
+        """Cancel a single task by its task_id."""
+        async with self._lock:
+            task = self._tasks.get(task_id)
+            if not task:
+                return False
+            if task.get("status") not in _TERMINAL:
+                task["status"] = "failed"
+                task["cancelled"] = True
+                task["error"] = "Cancelled by user"
+                ev = task.get("cancel_event")
+                if ev:
+                    ev.set()
+                if task_id in self._waiting:
+                    self._waiting.remove(task_id)
+                logger.info("Task %s cancelled via task_id", task_id)
+            return True
+
+    async def cancel_all(self) -> int:
+        """Immediately cancel all queued and running tasks and clear the waiting queue."""
+        count = 0
+        async with self._lock:
+            self._waiting.clear()
+            for tid, task in self._tasks.items():
+                if task.get("status") not in _TERMINAL:
                     task["status"] = "failed"
-                    task["error"] = "Cancelled by admin"
-                    if tid in self._waiting:
-                        self._waiting.remove(tid)
-                    logger.info("Task %s cancelled", tid)
-                # Prune the entry so lookups resolve to any NEW task created
-                # for the same message (retry flow).
-                self._tasks.pop(tid, None)
+                    task["cancelled"] = True
+                    task["error"] = "Cancelled by user"
+                    ev = task.get("cancel_event")
+                    if ev:
+                        ev.set()
+                    count += 1
+            if self._running_id:
+                logger.info("Active running task %s signalled to cancel", self._running_id)
+        logger.info("Cancelled %d task(s)", count)
+        return count
 
     async def get_task(self, task_id: str) -> Optional[dict[str, Any]]:
         """Return a serializable snapshot of a task."""
@@ -882,6 +924,9 @@ class TaskManager:
                 # of failing every task with "model not loaded".
                 await self._run_demo(task_id, prompt)
 
+        except GenerationCancelled as exc:
+            logger.info("Task %s generation cancelled: %s", task_id, exc)
+            await self._set(task_id, status="failed", error="Cancelled by user")
         except Exception as exc:
             logger.exception("Task %s failed: %s", task_id, exc)
             await self._set(task_id, status="failed", error=str(exc))
@@ -943,10 +988,24 @@ class TaskManager:
             # Called from the inference worker thread.
             loop.call_soon_threadsafe(_apply_progress, p)
 
+        task = self._tasks.get(task_id)
+        cancel_event = task.get("cancel_event") if task else None
+
+        def _is_cancelled() -> bool:
+            if cancel_event and cancel_event.is_set():
+                return True
+            t = self._tasks.get(task_id)
+            return t is None or t.get("status") in _TERMINAL or t.get("cancelled", False)
+
         # Run inference in a worker thread so we don't block the loop.
         info = await loop.run_in_executor(
             None,
-            lambda: wan_model.generate(prompt, input_path=input_path, on_progress=_on_progress),
+            lambda: wan_model.generate(
+                prompt,
+                input_path=input_path,
+                on_progress=_on_progress,
+                is_cancelled=_is_cancelled,
+            ),
         )
 
         # Free VRAM for audio generation.

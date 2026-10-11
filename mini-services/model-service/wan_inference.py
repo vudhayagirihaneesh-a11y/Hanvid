@@ -83,6 +83,11 @@ from typing import Any, Optional
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
+class GenerationCancelled(RuntimeError):
+    """Raised when generation is cancelled mid-flight."""
+    pass
+
+
 logger = logging.getLogger("wan_inference")
 
 MODEL_ID = os.environ.get("WAN_MODEL_ID", "Wan-AI/Wan2.2-T2V-A14B-Diffusers").strip()
@@ -1023,6 +1028,7 @@ class WanModel:
         prompt: str,
         input_path: Optional[str] = None,
         on_progress=None,
+        is_cancelled=None,
         num_frames: int = 0,
         guidance_scale: float = 0.0,
         width: int = 0,
@@ -1101,6 +1107,9 @@ class WanModel:
 
         # Map denoising steps onto 10..90% of the progress bar.
         def _on_step_end(pipe, step, timestep, callback_kwargs):
+            if is_cancelled and is_cancelled():
+                logger.info("Generation cancelled at step %d/%d — aborting immediately!", step + 1, num_inference_steps)
+                raise GenerationCancelled("Generation cancelled by user")
             logger.info("Denoising step %d/%d completed (timestep: %s)", step + 1, num_inference_steps, timestep)
             _report(10 + int(80 * (step + 1) / max(1, num_inference_steps)))
             return callback_kwargs
@@ -1119,6 +1128,8 @@ class WanModel:
         with self._gpu_lock:
             start = time.time()
             try:
+                if is_cancelled and is_cancelled():
+                    raise GenerationCancelled("Generation cancelled before start")
                 generator = _torch.Generator(device="cpu").manual_seed(seed)
                 logger.info(
                     "Generating %dx%d %d frames | steps=%d guidance=%.2f seed=%d",
@@ -1197,6 +1208,9 @@ class WanModel:
                         # Diffusers returns floats in [0, 1].
                         arr = (_np.clip(arr, 0.0, 1.0) * 255.0).round().astype(_np.uint8)
                     frames.append(arr)
+            except GenerationCancelled:
+                logger.info("Generation cancelled mid-run — GPU memory cleared.")
+                raise
             finally:
                 try:
                     _torch.cuda.empty_cache()
