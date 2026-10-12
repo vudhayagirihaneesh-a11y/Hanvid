@@ -381,7 +381,9 @@ _QUALITY_TAIL = ("highly detailed", "crisp focus", "smooth stable motion")
 
 
 def _normalise_phrase(p: str) -> str:
-    return re.sub(r"\s+", " ", p).strip()
+    cleaned = re.sub(r"^[#*\-\d.\s:]+", "", p)
+    cleaned = re.sub(r"[:#*]+$", "", cleaned)
+    return re.sub(r"\s+", " ", cleaned).strip()
 
 
 # Mutually exclusive weather/environment terms to prevent contradictory RAG phrases
@@ -426,7 +428,10 @@ def extract_style_phrases(
         if not raw or raw.endswith(".") or raw.count(" ") > 7:
             return
         p = _normalise_phrase(raw)
-        if not p or len(p) > 48:
+        if not p or len(p) > 48 or len(p) < 3:
+            return
+        # Reject markdown headers, category labels or syntax fragments
+        if any(bad in p.lower() for bad in ["aperture", "bokeh:", "clarity:", "kinematics", "locomotion", "guideline", "rule", "chapter", "section", "###", "##"]):
             return
         # Reject contradictory weather conditions not requested by the user
         if not _is_phrase_compatible(p, user_prompt):
@@ -478,7 +483,7 @@ def deterministic_enhance(
     parts: list[str] = []
     phrases = extract_style_phrases(rag_rules, user_prompt)
     if phrases:
-        parts.append("Style: " + "; ".join(phrases) + ".")
+        parts.append(", ".join(phrases) + ".")
 
     # Quality tail is checked against base AND style part together so
     # keywords are never repeated within the final prompt.
@@ -555,15 +560,12 @@ def rewrite_prompt_with_ollama(raw_payload: str) -> str:
             "You are an expert cinematic director and AI video prompt engineer. Merge the user's prompt "
             "with the STYLE RULES into ONE cohesive, photorealistic visual description for a text-to-video diffusion model.\n"
             "Strict Guidelines:\n"
-            "1. CONTINUOUS TEMPORAL PERSISTENCE (SUBJECTS NEVER VANISH): Every key moving subject (such as a flock of birds, animals, running people, moving vehicles) MUST remain continuously visible in frame throughout the ENTIRE duration of the shot from beginning to end. NEVER use exit or transient terms like 'glides across and exits', 'flies away', or 'disappears'. Always explicitly describe continuous in-frame motion.\n"
-            "2. CAMERA STABILITY FOR HIGH-SPEED PHYSICS: For physical impacts, shattering, slow-motion splashes, or macro physics, NEVER use disorienting 180-degree orbits or snap-zooms (which trigger spatial mirroring artifacts and dumbbell mutations in 3D diffusion latents). Anchor the shot with high-speed slow-motion macro cinematography and a subtle slow push-in tracking the impact point.\n"
-            "3. INITIAL SCENE ANCHOR (ESTABLISH SUBJECT AT T=0): The primary target object must be established standing firmly in place as the initial scene setup (e.g. 'At the center of a transparent glass chessboard on dark marble, an intricately carved glass horse-head knight chess piece stands upright').\n"
-            "4. COMPLETE PHYSICAL OBLITERATION & DEBRIS DYNAMICS: A heavy solid polished chrome steel sphere drops from above and slams with violent kinetic impact directly into the target object. Upon violent impact, the target object completely obliterates and disintegrates into an explosive expanding radial cloud of hundreds of razor-sharp flying crystalline splinters, pulverized glass shards, and fracture debris blasting outward in ultra slow-motion. Zero solid pieces remain intact.\n"
-            "5. DENSE OPAQUE FLUORESCENT FLUIDS (NO CLEAR WATER): Diffusion models heavily bias 'liquid' towards clear water. Always explicitly describe colored liquids as 'dense opaque fluorescent electric-blue luminous fluid and glowing cyan paint' erupting from the impact crater in volumetric self-luminous plumes and violently splattering glowing cyan droplets across the surface. Never describe the color as a mere surface reflection.\n"
-            "6. TIME OF DAY & WEATHER RIGIDITY: Strictly adhere to requested time of day and lighting. NEVER inject contradictory weather.\n"
-            "7. HUMAN & SCALE FIDELITY: When people are present, maintain eye-level medium shots or two-shots showing upper bodies and postures; never collapse into disembodied hands-only closeups.\n"
-            "8. OPTICAL CLARITY: Specify crystal-clear focus, sharp defined silhouettes, zero motion ghosting, zero double-exposure, rich volumetric lighting, and steady cinematic motion.\n"
-            "9. FORMAT & LENGTH: Output ONLY the visual description as a single unified paragraph between 50 and 80 words. No markdown, introductions, labels, or bullet points."
+            "1. FAITHFUL CAMERA CHOREOGRAPHY: Explicitly preserve all camera movement requested by the user — including snap zooms, dynamic 180-degree orbiting camera, sweeping crane shots, smooth drone flyovers, or steady tracking. Never suppress or overwrite requested camera choreography.\n"
+            "2. ANATOMICAL INTEGRITY & FULL BODY FRAMING: When characters, superheroes, or people are present, clearly frame full-body or dynamic three-quarter views with complete limbs, articulated hands, natural postures, and realistic proportions. Never crop or amputate lower bodies into floating stumps.\n"
+            "3. ACTION & PHYSICAL DYNAMICS: Describe the concrete physical mechanics of any action. For swinging (e.g. Spider-Man), describe the character actively gripping a taut web line anchored to a building, body swinging in a dynamic pendulum arc with knees bent, wind fluttering suit fabric. For impacts or physics, describe realistic kinetic forces, shattering glass splinters, or surface reactions as requested.\n"
+            "4. TEMPORAL CONTINUITY: Moving subjects (birds, people, vehicles, objects) must remain consistently visible in frame throughout the shot without vanishing into thin air.\n"
+            "5. TIME, LIGHTING & OPTICAL BEAUTY: Match the exact time of day, atmosphere, and volumetric lighting requested. Use sharp optics, cinematic lens depth of field, and natural textures.\n"
+            "6. FORMAT & LENGTH: Output ONLY the visual description as a single unified paragraph between 50 and 80 words. No markdown, introductions, labels, or bullet points."
         )
         llm_input = f"USER PROMPT:\n{user_prompt}\n\nSTYLE RULES:\n{rag_rules}"
 
